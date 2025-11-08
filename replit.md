@@ -61,11 +61,21 @@ Preferred communication style: Simple, everyday language.
 - Modular route registration pattern
 - Request/response logging with timing metrics
 
+**Implemented API Endpoints**
+- `GET /api/blog-posts` - Get all published blog posts
+- `GET /api/blog-posts/:slug` - Get single blog post by slug
+- `POST /api/blog-posts` - Create new blog post (**requires authentication - not yet implemented**)
+- `PUT /api/blog-posts/:id` - Update blog post (**requires authentication - not yet implemented**)
+- `DELETE /api/blog-posts/:id` - Delete blog post (**requires authentication - not yet implemented**)
+- `POST /api/contact-submissions` - Submit contact form
+- `GET /api/contact-submissions` - List all submissions (**requires authentication - not yet implemented**)
+- `POST /api/lead-magnet-downloads` - Record lead magnet download
+- `GET /api/lead-magnet-downloads` - List all downloads (**requires authentication - not yet implemented**)
+
 **Data Layer**
 - Storage interface pattern for database abstraction
-- In-memory storage implementation (`MemStorage`) for development
-- Prepared for PostgreSQL integration via Drizzle ORM
-- User schema defined with Drizzle and Zod validation
+- Database-backed storage using Drizzle ORM with PostgreSQL
+- Full CRUD operations for blog posts, contact submissions, lead magnets
 
 ### Data Storage Solutions
 
@@ -76,26 +86,37 @@ Preferred communication style: Simple, everyday language.
 - Migration support via Drizzle Kit
 
 **Schema Design**
-- Users table with id, username, password fields
-- Zod schemas for runtime validation of insert operations
-- Type-safe select/insert operations
+- **Users table**: id, username, password fields (for future admin authentication)
+- **Blog Posts table**: id, title, slug, excerpt, content, coverImage, category, readTime, published, createdAt, updatedAt
+- **Contact Submissions table**: id, name, practiceName, email, phone, service, message, bestTimeToContact, createdAt
+- **Lead Magnet Downloads table**: id, email, downloadType, createdAt
+- Zod schemas for runtime validation of all insert operations
+- Type-safe select/insert operations with Drizzle ORM
 
-**Storage Abstraction**
-- `IStorage` interface defines CRUD operations
-- `MemStorage` provides in-memory implementation for testing
-- Easy swap to database-backed storage without code changes
+**Storage Implementation**
+- `IStorage` interface defines CRUD operations for all entities
+- `DatabaseStorage` class implements interface using Drizzle ORM with PostgreSQL
+- Supports blog posts (CRUD), contact submissions, and lead magnet downloads
 
 ### Authentication and Authorization
 
 **Current State**
-- User schema prepared with username/password fields
-- Authentication infrastructure planned but not yet implemented
+- ⚠️ **CRITICAL SECURITY NOTICE**: Admin API endpoints (blog CRUD, contact/lead magnet listings) are currently exposed without authentication
+- User schema exists in database but authentication is not implemented
 - Session management dependencies included (connect-pg-simple)
+- Public endpoints (blog reading, contact form submission, lead magnet recording) work as intended
 
-**Planned Approach**
-- Password hashing (dependencies suggest bcrypt or similar)
-- Session-based authentication
-- PostgreSQL session store for production
+**Required Implementation (Before Production)**
+1. Implement authentication middleware for admin endpoints
+2. Add session-based authentication using express-session
+3. Hash passwords using bcrypt or similar
+4. Protect the following endpoints with authentication:
+   - POST /api/blog-posts
+   - PUT /api/blog-posts/:id
+   - DELETE /api/blog-posts/:id
+   - GET /api/contact-submissions
+   - GET /api/lead-magnet-downloads
+5. Consider implementing role-based access control (admin vs. public)
 
 ### External Dependencies
 
@@ -141,3 +162,83 @@ Preferred communication style: Simple, everyday language.
 **Development Dependencies**
 - **@replit/vite-plugin-runtime-error-modal** - Enhanced error display in Replit
 - **nanoid** - Unique ID generation
+
+### Third-Party Integrations
+
+**Google Analytics (GA4)**
+- Status: Integrated in HTML but requires configuration
+- Implementation: Script added to `client/index.html`
+- **Action Required**: Replace `G-XXXXXXXXXX` with actual GA4 measurement ID
+- Custom event tracking implemented via `useAnalytics` hook
+- Events tracked: page views, service views, contact form submissions, lead magnet downloads, CTA clicks
+
+**Calendly Booking Widget**
+- Status: Integrated in HTML but requires configuration
+- Implementation: Script and widget added to Contact page
+- **Action Required**: Replace `https://calendly.com/your-calendly-link` with actual Calendly scheduling link
+- Location: `client/src/pages/ContactPage.tsx` (line ~196)
+
+**Email Notifications**
+- Status: Not implemented
+- **Action Required**: Implement email notification system for contact form submissions
+- Recommended: Use service like SendGrid, AWS SES, or Resend
+- Should send notifications to practice owner when contact forms are submitted
+
+### Recent Changes (November 2025)
+
+**Backend Implementation**
+- Created PostgreSQL database with Drizzle ORM
+- Implemented full database schema for blog, contacts, and lead magnets
+- Built RESTful API endpoints for all CRUD operations
+- Integrated contact form with backend API
+- Added form submission with success/error handling
+
+**Frontend Enhancements**
+- Added Google Analytics page tracking and event tracking
+- Integrated Calendly widget on Contact page
+- Implemented controlled form components with state management
+- Added visual feedback for form submissions
+
+**Service Detail Pages**
+- Created individual pages for all 6 services:
+  - Insurance Verification (`/services/insurance-verification`)
+  - AR Support (`/services/ar-support`)
+  - Payment Posting (`/services/payment-posting`)
+  - Claims Submission (`/services/claims-submission`)
+  - Credentialing (`/services/credentialing`)
+  - Special Projects (`/services/special-projects`)
+- Each page features:
+  - Full-screen 3D hero with animated floating icons
+  - Benefits/impact sections
+  - Process/deliverables breakdown
+  - Call-to-action sections
+  - Unique color schemes and branding
+
+### Security and Production Readiness
+
+**⚠️ BEFORE DEPLOYING TO PRODUCTION**
+
+1. **Implement Authentication** (CRITICAL)
+   - Add authentication middleware to protect admin endpoints
+   - Implement login system for blog CMS access
+   - Secure contact submissions and lead magnet download listings
+
+2. **Configure Third-Party Services**
+   - Add real Google Analytics measurement ID
+   - Add real Calendly scheduling link
+   - Set up email notification service
+
+3. **Error Handling**
+   - Improve API error responses (currently all failures return 400)
+   - Add proper logging for database and validation errors
+   - Return appropriate HTTP status codes (400 vs 500 vs 404)
+
+4. **Environment Variables**
+   - Ensure DATABASE_URL is properly configured
+   - Add SENDGRID_API_KEY or similar for email notifications
+   - Add GA_MEASUREMENT_ID and CALENDLY_URL for easy configuration
+
+5. **Testing**
+   - Test all API endpoints with valid and invalid data
+   - Verify form submissions store correctly in database
+   - Test error handling and edge cases
