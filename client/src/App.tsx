@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect } from 'react';
 import "@fontsource/inter";
+import { usePageTracking } from './hooks/useAnalytics';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -32,6 +33,7 @@ function ScrollToTop() {
 
 function AnimatedRoutes() {
   const location = useLocation();
+  usePageTracking();
 
   return (
     <AnimatePresence mode="wait">

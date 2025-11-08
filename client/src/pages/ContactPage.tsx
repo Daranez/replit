@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import { trackContactFormSubmit } from '@/hooks/useAnalytics';
+import { useState } from 'react';
 
 export default function ContactPage() {
   return (
@@ -49,9 +51,50 @@ function HeroSection() {
 
 function ContactSection() {
   const { ref, isVisible } = useScrollAnimation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [formData, setFormData] = useState({
+    name: '',
+    practiceName: '',
+    email: '',
+    phone: '',
+    service: '',
+    message: '',
+    bestTimeToContact: '',
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+
+    try {
+      const response = await fetch('/api/contact-submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        trackContactFormSubmit();
+        setSubmitStatus('success');
+        setFormData({
+          name: '',
+          practiceName: '',
+          email: '',
+          phone: '',
+          service: '',
+          message: '',
+          bestTimeToContact: '',
+        });
+      } else {
+        throw new Error('Failed to submit form');
+      }
+    } catch (error) {
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -66,32 +109,80 @@ function ContactSection() {
             <Card className="shadow-xl border-2">
               <CardContent className="p-8">
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">Get in Touch</h2>
+                
+                {submitStatus === 'success' && (
+                  <div className="p-4 mb-6 bg-green-50 border border-green-200 rounded-lg text-green-800">
+                    Thank you for contacting us! We'll be in touch soon.
+                  </div>
+                )}
+                
+                {submitStatus === 'error' && (
+                  <div className="p-4 mb-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                    Failed to send message. Please try again or email us directly.
+                  </div>
+                )}
+                
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label htmlFor="name">Your Name *</Label>
-                      <Input id="name" type="text" placeholder="John Doe" required className="mt-2" />
+                      <Input 
+                        id="name" 
+                        type="text" 
+                        placeholder="John Doe" 
+                        required 
+                        className="mt-2"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      />
                     </div>
                     <div>
                       <Label htmlFor="practice">Practice Name *</Label>
-                      <Input id="practice" type="text" placeholder="ABC Dental" required className="mt-2" />
+                      <Input 
+                        id="practice" 
+                        type="text" 
+                        placeholder="ABC Dental" 
+                        required 
+                        className="mt-2"
+                        value={formData.practiceName}
+                        onChange={(e) => setFormData({ ...formData, practiceName: e.target.value })}
+                      />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label htmlFor="email">Email Address *</Label>
-                      <Input id="email" type="email" placeholder="you@example.com" required className="mt-2" />
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="you@example.com" 
+                        required 
+                        className="mt-2"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      />
                     </div>
                     <div>
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input id="phone" type="tel" placeholder="(555) 123-4567" className="mt-2" />
+                      <Input 
+                        id="phone" 
+                        type="tel" 
+                        placeholder="(555) 123-4567" 
+                        className="mt-2"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      />
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="service">Service Interested In *</Label>
-                    <Select required>
+                    <Select 
+                      required 
+                      value={formData.service}
+                      onValueChange={(value) => setFormData({ ...formData, service: value })}
+                    >
                       <SelectTrigger className="mt-2">
                         <SelectValue placeholder="Select a service" />
                       </SelectTrigger>
@@ -114,12 +205,17 @@ function ContactSection() {
                       placeholder="Tell us about your practice and how we can help..."
                       rows={5}
                       className="mt-2"
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="time">Best Time to Contact</Label>
-                    <Select>
+                    <Select
+                      value={formData.bestTimeToContact}
+                      onValueChange={(value) => setFormData({ ...formData, bestTimeToContact: value })}
+                    >
                       <SelectTrigger className="mt-2">
                         <SelectValue placeholder="Select a time" />
                       </SelectTrigger>
@@ -131,8 +227,13 @@ function ContactSection() {
                     </Select>
                   </div>
 
-                  <Button type="submit" size="lg" className="w-full bg-gradient-to-r from-blue-600 to-teal-500">
-                    Send Message
+                  <Button 
+                    type="submit" 
+                    size="lg" 
+                    className="w-full bg-gradient-to-r from-blue-600 to-teal-500"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Sending...' : 'Send Message'}
                   </Button>
                 </form>
               </CardContent>
@@ -188,12 +289,11 @@ function ContactSection() {
                 <p className="text-blue-100 mb-4">
                   Book a time that works for you to discuss your RCM needs
                 </p>
-                <Button variant="outline" className="w-full border-2 border-white text-white hover:bg-white/10">
-                  View Calendar
-                </Button>
-                <p className="text-xs text-blue-200 mt-4">
-                  Calendly integration placeholder
-                </p>
+                <div
+                  className="calendly-inline-widget"
+                  data-url="https://calendly.com/your-calendly-link"
+                  style={{ minWidth: '100%', height: '700px', marginTop: '1rem' }}
+                ></div>
               </CardContent>
             </Card>
 
